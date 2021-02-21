@@ -4,21 +4,23 @@
 Adafruit_LSM6DS33 lsm6ds33;
 Adafruit_LIS3MDL lis3mdl;
 
+int vBattPin = A6;
+int vBatt = 0;
+
 void setup(void) {
   Serial.begin(115200);
-  while (!Serial)
-    delay(10); // will pause Zero, Leonardo, etc until serial console opens
-Serial.println("here1");
+  while (!Serial){delay(10);}
+  
   if (!lsm6ds33.begin_I2C()) {
     Serial.println("Failed to find LSM6DS33 chip");
     while (1) {delay(10);}
   }
-Serial.println("here2");
+
   if (! lis3mdl.begin_I2C()){
     Serial.println("Failed to find LIS3MDL chip");
     while (1) {delay(10);}
   }
-  Serial.println("here3");
+  
   // lsm6ds33.setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
   Serial.print("Accelerometer range set to: ");
   switch (lsm6ds33.getAccelRange()) {
@@ -198,21 +200,27 @@ void loop() {
   sensors_event_t magno; 
   lis3mdl.getEvent(&magno);
 
-  // accel in [m/s^2]
-  Serial.print(accel.acceleration.x);
-  Serial.print(","); Serial.print(accel.acceleration.y);
-  Serial.print(","); Serial.print(accel.acceleration.z);
-
-  // gyro in [rad/s]
-  Serial.print(","); Serial.print(gyro.gyro.x);
-  Serial.print(","); Serial.print(gyro.gyro.y);
-  Serial.print(","); Serial.print(gyro.gyro.z);
-
-  // mag in [uTelsa]
-  Serial.print(","); Serial.print(magno.magnetic.x);
-  Serial.print(","); Serial.print(magno.magnetic.y); 
-  Serial.print(","); Serial.print(magno.magnetic.z); 
-  Serial.println();
+    Serial.print(millis());
+    // accel in [m/s^2]
+    Serial.print(","); Serial.print(accel.acceleration.x);
+    Serial.print(","); Serial.print(accel.acceleration.y);
+    Serial.print(","); Serial.print(accel.acceleration.z);
+  
+    // gyro in [rad/s]
+    Serial.print(","); Serial.print(gyro.gyro.x);
+    Serial.print(","); Serial.print(gyro.gyro.y);
+    Serial.print(","); Serial.print(gyro.gyro.z);
+  
+    // mag in [uTelsa]
+    Serial.print(","); Serial.print(magno.magnetic.x);
+    Serial.print(","); Serial.print(magno.magnetic.y); 
+    Serial.print(","); Serial.print(magno.magnetic.z); 
+  
+    vBatt = analogRead(vBattPin);
+    vBatt *= 3.3;
+    vBatt /= 512;
+    
+    Serial.print(","); Serial.print(vBatt);
     
   delayMicroseconds(10000);
 }
