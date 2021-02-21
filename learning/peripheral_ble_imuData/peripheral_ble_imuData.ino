@@ -28,7 +28,7 @@ struct sendData {
 
 void setup(void) {
   Bluefruit.begin();
-  Bluefruit.setName("nRF IMU Test");
+  Bluefruit.setName("adafruit_nRF_IMU");
 
   // Set the connect/disconnect callback handlers
   Bluefruit.Periph.setConnectCallback(connect_callback);
