@@ -2,29 +2,39 @@
 #include <Adafruit_LSM6DS33.h>
 #include <bluefruit.h>
 
-#define PACKET_SIZE 40 //10*4
+#define PACKET_SIZE 16 // 4*4
 
 Adafruit_LSM6DS33 lsm6ds33;
 Adafruit_LIS3MDL lis3mdl;
 
 BLEService        imuS = BLEService(0x6969);  //imu service
-BLECharacteristic dataC = BLECharacteristic(0xAAAA);
+BLECharacteristic accelC = BLECharacteristic(0xAAAA);
+BLECharacteristic gyroC = BLECharacteristic(0xBBBB);
+BLECharacteristic magC = BLECharacteristic(0xCCCC);
 
 //BLEDis bleDIS;    // DIS (Device Information Service) helper class instance
 BLEBas bleBATT;    // BAS (Battery Service) helper class instance
 
-struct sendData {
+struct accelData {
   unsigned long tickTime = 0;
   float accX = 0;
   float accY = 0;
   float accZ = 0;
+}accelDataOut;
+
+struct gyroData {
+  unsigned long tickTime = 0;
   float gyroX = 0;
   float gyroY = 0;
   float gyroZ = 0;
+}gyroDataOut;
+
+struct magData {
+  unsigned long tickTime = 0;
   float magX = 0;
   float magY = 0;
   float magZ = 0;
-} dataToSend;
+}magDataOut;
 
 void setup(void) {
   Bluefruit.begin();
@@ -88,13 +98,29 @@ void startAdvertising(void)
 void setupBLE(void)
 {
   imuS.begin();
-  dataC.setProperties(CHR_PROPS_NOTIFY);
-  dataC.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
-  dataC.setFixedLen(PACKET_SIZE); 
-  //dataC.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
-  dataC.begin();
-  uint8_t imudata[40] = {0}; // Set the characteristic to use 8-bit values, with the sensor connected and detected
-  dataC.write(imudata, PACKET_SIZE);
+  accelC.setProperties(CHR_PROPS_NOTIFY);
+  accelC.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  accelC.setFixedLen(PACKET_SIZE); 
+  //accelC.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
+  accelC.begin();
+  uint8_t acceldata[PACKET_SIZE] = {0}; // Set the characteristic to use 8-bit values, with the sensor connected and detected
+  accelC.write(acceldata, PACKET_SIZE);
+
+  gyroC.setProperties(CHR_PROPS_NOTIFY);
+  gyroC.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  gyroC.setFixedLen(PACKET_SIZE); 
+  //gyroC.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
+  gyroC.begin();
+  uint8_t gyrodata[PACKET_SIZE] = {0}; // Set the characteristic to use 8-bit values, with the sensor connected and detected
+  gyroC.write(gyrodata, PACKET_SIZE);
+
+  magC.setProperties(CHR_PROPS_NOTIFY);
+  magC.setPermission(SECMODE_OPEN, SECMODE_NO_ACCESS);
+  magC.setFixedLen(PACKET_SIZE); 
+  //magC.setCccdWriteCallback(cccd_callback);  // Optionally capture CCCD updates
+  magC.begin();
+  uint8_t magdata[PACKET_SIZE] = {0}; // Set the characteristic to use 8-bit values, with the sensor connected and detected
+  magC.write(magdata, PACKET_SIZE);
 }
 
 void connect_callback(uint16_t conn_handle)
@@ -133,19 +159,24 @@ void loop() {
     sensors_event_t magno; 
     lis3mdl.getEvent(&magno);
 
-    dataToSend.tickTime = millis();
-    dataToSend.accX = accel.acceleration.x;
-    dataToSend.accY = accel.acceleration.y;
-    dataToSend.accY = accel.acceleration.z;
-    dataToSend.gyroX = gyro.gyro.x;
-    dataToSend.gyroY = gyro.gyro.y;
-    dataToSend.gyroZ = gyro.gyro.z;
-    dataToSend.magX = magno.magnetic.x;
-    dataToSend.magY = magno.magnetic.y; 
-    dataToSend.magZ = magno.magnetic.z; 
-  
-    dataC.notify((const uint8_t*)&dataToSend, sizeof(dataToSend));
+    accelDataOut.tickTime = millis();
+    accelDataOut.accX = accel.acceleration.x;
+    accelDataOut.accY = accel.acceleration.y;
+    accelDataOut.accY = accel.acceleration.z;
+    accelC.notify((const uint8_t*)&accelDataOut, sizeof(accelDataOut));
+    
+    gyroDataOut.tickTime = millis();
+    gyroDataOut.gyroX = gyro.gyro.x;
+    gyroDataOut.gyroY = gyro.gyro.y;
+    gyroDataOut.gyroZ = gyro.gyro.z;
+    gyroC.notify((const uint8_t*)&gyroDataOut, sizeof(gyroDataOut));
+    
+    magDataOut.tickTime = millis();
+    magDataOut.magX = magno.magnetic.x;
+    magDataOut.magY = magno.magnetic.y; 
+    magDataOut.magZ = magno.magnetic.z; 
+    magC.notify((const uint8_t*)&magDataOut, sizeof(magDataOut));
   }
     
-  delay(100);
+  delay(50);
 }

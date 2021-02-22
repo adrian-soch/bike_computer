@@ -1,19 +1,15 @@
 #include <bluefruit.h>
 
-BLEClientService        dataC(0x6969);
-BLEClientCharacteristic dataC(0xAAAA);
+BLEClientService        imuS(0x6969);
+BLEClientCharacteristic accelC(0xAAAA);
+BLEClientCharacteristic gyroC(0xBBBB);
+BLEClientCharacteristic magC(0xCCCC);
 
-struct sendData {
+struct accelData {
   unsigned long tickTime = 0;
-  float accX = 0;
-  float accY = 0;
-  float accZ = 0;
-  float gyroX = 0;
-  float gyroY = 0;
-  float gyroZ = 0;
-  float magX = 0;
-  float magY = 0;
-  float magZ = 0;
+  float x = 0;
+  float y = 0;
+  float z = 0;
 }dataIn;
 
 void setup()
@@ -34,8 +30,16 @@ void setup()
   imuS.begin();
 
   // set up callback for receiving measurement
-  dataC.setNotifyCallback(IMU_notify_callback);
-  dataC.begin();
+  accelC.setNotifyCallback(IMU_notify_callback);
+  accelC.begin();
+
+  // set up callback for receiving measurement
+  gyroC.setNotifyCallback(IMU_notify_callback);
+  gyroC.begin();
+
+  // set up callback for receiving measurement
+  magC.setNotifyCallback(IMU_notify_callback);
+  magC.begin();
 
   // Increase Blink rate to different from PrPh advertising mode
   Bluefruit.setConnLedInterval(250);
@@ -100,7 +104,7 @@ void connect_callback(uint16_t conn_handle)
   Serial.println("Found it");
   
   Serial.print("Discovering Measurement characteristic ... ");
-  if ( !dataC.discover() )
+  if ( !accelC.discover() & !gyroC.discover() & !magC.discover())
   {
     // Measurement chr is mandatory, if it is not found (valid), then disconnect
     Serial.println("not found !!!");  
@@ -108,36 +112,30 @@ void connect_callback(uint16_t conn_handle)
     Bluefruit.disconnect(conn_handle);
     return;
   }
-  Serial.println("Found it");
-
-  // Measurement is found, continue to look for option Body Sensor Location
-  // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.characteristic.body_sensor_location.xml
-  // Body Sensor Location is optional, print out the location in text if present
-  Serial.print("Discovering Body Sensor Location characteristic ... ");
-  if ( bslc.discover() )
-  {
-    Serial.println("Found it");
-    
-    // Body sensor location value is 8 bit
-    const char* body_str[] = { "Other", "Chest", "Wrist", "Finger", "Hand", "Ear Lobe", "Foot" };
-
-    // Read 8-bit BSLC value from peripheral
-    uint8_t loc_value = bslc.read8();
-    
-    Serial.print("Body Location Sensor: ");
-    Serial.println(body_str[loc_value]);
-  }else
-  {
-    Serial.println("Found NONE");
-  }
 
   // Reaching here means we are ready to go, let's enable notification on measurement chr
-  if ( dataC.enableNotify() )
+  if ( accelC.enableNotify() )
   {
-    Serial.println("Ready to receive IMU Measurement value");
+    Serial.println("Ready to receive accel Measurement value");
   }else
   {
-    Serial.println("Couldn't enable notify for IMU Measurement. Increase DEBUG LEVEL for troubleshooting");
+    Serial.println("Couldn't enable notify for accel Measurement. Increase DEBUG LEVEL for troubleshooting");
+  }
+
+  if ( gyroC.enableNotify() )
+  {
+    Serial.println("Ready to receive gyro Measurement value");
+  }else
+  {
+    Serial.println("Couldn't enable notify for gyro Measurement. Increase DEBUG LEVEL for troubleshooting");
+  }
+
+  if ( magC.enableNotify() )
+  {
+    Serial.println("Ready to receive mag Measurement value");
+  }else
+  {
+    Serial.println("Couldn't enable notify for mag Measurement. Increase DEBUG LEVEL for troubleshooting");
   }
 }
 
@@ -158,25 +156,32 @@ void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 /**
  * Hooked callback that triggered when a measurement value is sent from peripheral
  * @param chr   Pointer client characteristic that even occurred,
- *              in this example it should be dataC
+ *              in this example it should be accelC, gyroC or magC
  * @param data  Pointer to received data
  * @param len   Length of received data
  */
 void IMU_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len)
 {
   memcpy(&dataIn, data, sizeof(dataIn));
-
-  Serial.print(","); Serial.print(dataIn.tickTime);
+  Serial.print(chr->valueHandle());
   
-  Serial.print(","); Serial.print(dataIn.accX);
-  Serial.print(","); Serial.print(dataIn.accY);
-  Serial.print(","); Serial.print(dataIn.accZ);
-
-  Serial.print(","); Serial.print(dataIn.gyroX);
-  Serial.print(","); Serial.print(dataIn.gyroY);
-  Serial.print(","); Serial.print(dataIn.gyroZ);
-
-  Serial.print(","); Serial.print(dataIn.magX);
-  Serial.print(","); Serial.print(dataIn.magY);
-  Serial.print(","); Serial.println(dataIn.magZ);
+//  if(chr->valueHandle() == 16){
+//    Serial.print("Accel :");
+//  }
+//  else if(chr->valueHandle() == 19){
+//    Serial.print("Gyro :");
+//  }
+//  else if(chr->valueHandle() == 22){
+//    Serial.print("Mag :");
+//  }
+//  else{
+//    // Not an expected characteristic, ignore it
+//    Serial.print("Skipping, check connHandle value");
+//    return;
+//  }
+  
+  Serial.print(","); Serial.print(dataIn.tickTime);
+  Serial.print(","); Serial.print(dataIn.x);
+  Serial.print(","); Serial.print(dataIn.y);
+  Serial.print(","); Serial.println(dataIn.z);
 }
