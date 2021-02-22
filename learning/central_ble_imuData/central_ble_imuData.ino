@@ -5,7 +5,7 @@ BLEClientCharacteristic accelC(0xAAAA);
 BLEClientCharacteristic gyroC(0xBBBB);
 BLEClientCharacteristic magC(0xCCCC);
 
-struct accelData {
+struct imuData {
   unsigned long tickTime = 0;
   float x = 0;
   float y = 0;
