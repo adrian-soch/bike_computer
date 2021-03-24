@@ -1,3 +1,14 @@
+/*********************************************************************
+ Central                 <--->    Peripheral
+ (nRF52 BLE Feather)              (nRF52 BLE Feather Sense)
+
+ - This sketch to a BLE feather Sense board
+ - Central sketch to a BLE feather
+ - Move the Feather sense to view 9 dof IMU data into the central's serial output
+
+
+*********************************************************************/
+
 #include <Adafruit_LIS3MDL.h>
 #include <Adafruit_LSM6DS33.h>
 #include <bluefruit.h>
