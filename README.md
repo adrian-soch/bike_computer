@@ -5,8 +5,11 @@
 bike_computer
 │   LICENSE
 │   README.md
-│
+│   
 ├───CAD
+│   ├───SolidWorks
+    |       <all solidworks parts>
+│   │
 │   ├───STEP
 │   │       case_batteryHolder_prototype.STEP
 │   │       case_bottom_prototype.STEP
@@ -16,6 +19,7 @@ bike_computer
 │   └───STL
 │           case_batteryHolder_prototype.STL
 │           case_bottom_Prototype.STL
+│           case_hubMount_prototype.STL
 │           case_top_testPrototype.STL
 │
 ├───learning
@@ -29,6 +33,13 @@ bike_computer
 │   ├───imu_9dof_printData
 │   │       imu_9dof_printData.ino
 │   │
+│   ├───Matlab Analysis
+│   │       dataAnalysis.mlx
+│   │       TestDataLog.xlsx
+│   │
+│   ├───OLED_featherwing_test
+│   │       OLED_featherwing_test.ino
+│   │
 │   └───peripheral_ble_imuData
 │           peripheral_ble_imuData.ino
 │
@@ -36,8 +47,8 @@ bike_computer
     ├───central_HUD
     │       central_HUD.ino
     │
-    └───peripheral_Hub_Sensor
-            peripheral_Hub_Sensor.ino
+    └───peripheral_hubSensor
+            peripheral_hubSensor.ino
 ```
 
 ### Description
