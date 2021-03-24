@@ -1,11 +1,7 @@
 /*********************************************************************
- This is an example for our nRF52 based Bluefruit LE modules
+ nRF52 BLE Feather <---> Polar H10 
 
- Pick one up today in the adafruit shop!
-
- Adafruit invests time and resources providing this open source code,
- please support Adafruit and open-source hardware by purchasing
- products from Adafruit!
+ - Upload sketch to board and have a Polar H10 operating in range
 
  MIT license, check LICENSE for more information
  All text above, and the splash screen below must be included in

@@ -1,6 +1,9 @@
 /*********************************************************************
- Central                 <--->    Peripheral
- (nRF52 BLE Feather)              (nRF52 BLE Feather Sense)
+      Central                 <--->           Peripheral_1
+(nRF52 BLE Feather)                     (nRF52 BLE Feather Sense)
+
+      Central                 <--->           Peripheral_2
+(nRF52 BLE Feather)                           (Polar H10)
 
  - This sketch to a BLE feather board
  - Peripheral sketch to a BLE feather Sense
@@ -10,11 +13,22 @@
 *********************************************************************/
 
 #include <bluefruit.h>
+#include <SPI.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SH110X.h>
 
+#define WIDTH 128
+#define HEIGHT 64
+
+// BLE 
 BLEClientService        imuS(0x6969);
 BLEClientCharacteristic accelC(0xAAAA);
 BLEClientCharacteristic gyroC(0xBBBB);
 BLEClientCharacteristic magC(0xCCCC);
+
+// OLED
+Adafruit_SH110X display = Adafruit_SH110X(HEIGHT, WIDTH, &Wire);
 
 struct imuData {
   unsigned long tickTime = 0;
@@ -26,14 +40,32 @@ struct imuData {
 void setup()
 {
   Serial.begin(115200);
-  while ( !Serial ) delay(10);   // for nrf52840 with native usb
 
-  Serial.println("Bluefruit52 Central Custom IMU Example");
+  // OLED
+  display.begin(0x3C, true); // Address 0x3C default
+
+  Serial.println("OLED begun");
+  display.display();
+  delay(3000);
+
+  // Clear the buffer.
+  display.clearDisplay();
+  display.display();
+
+  display.setRotation(1);
+
+  // text display tests
+  display.setTextSize(2);
+  display.setTextWrap(false);
+  display.setCursor(0,0);
+
+  // BLE
+  Serial.println("Starting BLE...");
   Serial.println("--------------------------------------\n");
 
-  // Initialize Bluefruit with maximum connections as Peripheral = 0, Central = 1
+  // Initialize Bluefruit with maximum connections as Peripheral = X, Central = Y
   // SRAM usage required by SoftDevice will increase dramatically with number of connections
-  Bluefruit.begin(0, 1);
+  Bluefruit.begin(0, 2);
 
   Bluefruit.setName("adafruit_nRF_Central");
 
@@ -72,11 +104,26 @@ void setup()
   Bluefruit.Scanner.filterUuid(imuS.uuid);
   Bluefruit.Scanner.useActiveScan(false);
   Bluefruit.Scanner.start(0);                   // // 0 = Don't stop scanning after n seconds
+
+  display.setTextSize(1);
+  display.setTextColor(SH110X_WHITE);
+  display.setCursor(0,0);
+  display.print("Connecting...");
+  display.display();
 }
 
 void loop()
-{
-  // do nothing
+{  
+  static int accel = 0;
+  static int gyro = 0;
+  display.setCursor(0,0);
+  display.setTextColor(SH110X_WHITE, SH110X_BLACK);
+  display.print("Accel: "); display.println(accel++);
+  display.print("Gyro: "); display.println(gyro++);
+  
+  delay(50);
+  yield();
+  display.display();
 }
 
 /**
@@ -148,6 +195,10 @@ void connect_callback(uint16_t conn_handle)
   {
     Serial.println("Couldn't enable notify for mag Measurement. Increase DEBUG LEVEL for troubleshooting");
   }
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.print("Connected!\n");
+  display.display();
 }
 
 /**
@@ -186,7 +237,7 @@ void IMU_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t l
 //    Serial.print("Mag :");
 //  }
 //  else{
-//    // Not an expected characteristic, ignore it
+//    // Not an expected characteristic, ignore it+
 //    Serial.print("Skipping, check connHandle value");
 //    return;
 //  }
@@ -195,4 +246,5 @@ void IMU_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t l
   Serial.print(","); Serial.print(dataIn.x);
   Serial.print(","); Serial.print(dataIn.y);
   Serial.print(","); Serial.println(dataIn.z);
+
 }
