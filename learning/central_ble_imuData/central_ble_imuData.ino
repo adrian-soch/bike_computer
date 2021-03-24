@@ -1,3 +1,14 @@
+/*********************************************************************
+ Central                 <--->    Peripheral
+ (nRF52 BLE Feather)              (nRF52 BLE Feather Sense)
+
+ - This sketch to a BLE feather board
+ - Peripheral sketch to a BLE feather Sense
+ - Open a serial connection to view the 9 dof IMU data from the peripheral
+
+
+*********************************************************************/
+
 #include <bluefruit.h>
 
 BLEClientService        imuS(0x6969);
