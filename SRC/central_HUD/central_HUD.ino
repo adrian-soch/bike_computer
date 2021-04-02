@@ -5,11 +5,9 @@
       Central                 <--->           Peripheral_2
 (nRF52 BLE Feather)                           (Polar H10)
 
- - This sketch to a BLE feather board
- - Peripheral sketch to a BLE feather Sense
- - Open a serial connection to view the 9 dof IMU data from the peripheral
-
-
+ - Upload this sketch to a BLE feather board with OLED attached
+ - Upload the Peripheral sketch to a BLE feather Sense
+ - Activate HR sensor (Polar H10)
 *********************************************************************/
 
 #include <bluefruit.h>
