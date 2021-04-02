@@ -8,8 +8,9 @@ bike_computer
 │   
 ├───CAD
 │   ├───SolidWorks
-    |       <all solidworks parts>
-│   │
+|   |       <all solidworks parts>
+|   |       <solidworks assembly>
+|   |
 │   ├───STEP
 │   │       case_batteryHolder_prototype.STEP
 │   │       case_bottom_prototype.STEP
