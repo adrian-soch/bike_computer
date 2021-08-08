@@ -5,9 +5,11 @@
       Central                 <--->           Peripheral_2
 (nRF52 BLE Feather)                           (Polar H10)
 
- - Upload this sketch to a BLE feather board with OLED attached
- - Upload the Peripheral sketch to a BLE feather Sense
- - Activate HR sensor (Polar H10)
+ - This sketch to a BLE feather board
+ - Peripheral sketch to a BLE feather Sense
+ - Open a serial connection to view the 9 dof IMU data from the peripheral
+
+
 *********************************************************************/
 
 #include <bluefruit.h>
@@ -20,24 +22,38 @@
 #define HEIGHT 64
 
 // BLE 
+/* HRM Service Definitions
+ * Heart Rate Monitor Service:  0x180D
+ * Heart Rate Measurement Char: 0x2A37 (Mandatory)
+ * Body Sensor Location Char:   0x2A38 (Optional)
+ * Model Number:                0x2A25
+ */
+
+BLEClientService        hrms(UUID16_SVC_HEART_RATE);
+BLEClientCharacteristic hrmc(UUID16_CHR_HEART_RATE_MEASUREMENT);
+BLEClientCharacteristic bslc(UUID16_CHR_BODY_SENSOR_LOCATION);
+
 BLEClientService        imuS(0x6969);
-BLEClientCharacteristic accelC(0xAAAA);
 BLEClientCharacteristic gyroC(0xBBBB);
-BLEClientCharacteristic magC(0xCCCC);
 
 // OLED
 Adafruit_SH110X display = Adafruit_SH110X(HEIGHT, WIDTH, &Wire);
 
-struct imuData {
-  unsigned long tickTime = 0;
-  float x = 0;
-  float y = 0;
-  float z = 0;
+struct data {
+  float gyroX = 0;
+  float gyroY = 0;
+  float gyroZ = 0;
+  float batteryLevel = 0;
 }dataIn;
+
+int16_t rpm_filtered = 0;
+const float radPerSec2RPM = 30/3.141592654; // (2*pi/60)^-1
+unsigned long previous = 0;
 
 void setup()
 {
   Serial.begin(115200);
+  while ( !Serial ) delay(10);   // for nrf52840 with native usb
 
   // OLED
   display.begin(0x3C, true); // Address 0x3C default
@@ -65,22 +81,14 @@ void setup()
   // SRAM usage required by SoftDevice will increase dramatically with number of connections
   Bluefruit.begin(0, 2);
 
-  Bluefruit.setName("adafruit_nRF_Central");
+  Bluefruit.setName("HUD_Central");
 
   // Initialize IMU client
   imuS.begin();
 
   // set up callback for receiving measurement
-  accelC.setNotifyCallback(IMU_notify_callback);
-  accelC.begin();
-
-  // set up callback for receiving measurement
   gyroC.setNotifyCallback(IMU_notify_callback);
   gyroC.begin();
-
-  // set up callback for receiving measurement
-  magC.setNotifyCallback(IMU_notify_callback);
-  magC.begin();
 
   // Increase Blink rate to different from PrPh advertising mode
   Bluefruit.setConnLedInterval(250);
@@ -102,26 +110,45 @@ void setup()
   Bluefruit.Scanner.filterUuid(imuS.uuid);
   Bluefruit.Scanner.useActiveScan(false);
   Bluefruit.Scanner.start(0);                   // // 0 = Don't stop scanning after n seconds
+}
 
-  display.setTextSize(1);
-  display.setTextColor(SH110X_WHITE);
-  display.setCursor(0,0);
-  display.print("Connecting...");
-  display.display();
+/**
+ * @brief Moving average filter
+ * @param rpm A single rpm measurement
+ * @param rpm_filtered Allocted variable to store result
+ */
+void movingAverage(const int16_t rpm, int16_t *rpm_filtered)
+{
+  const uint8_t num_windows = 7;
+  static int16_t rpmArray[num_windows] = {0};
+  static uint8_t ii = 0;
+  int32_t sum = 0;
+
+  rpmArray[ii++ % num_windows] = rpm;
+
+  for(uint8_t jj = 0; jj < num_windows; jj++){
+    sum += rpmArray[jj];
+  }
+  *rpm_filtered = sum/num_windows;
 }
 
 void loop()
 {  
-  static int accel = 0;
-  static int gyro = 0;
-  display.setCursor(0,0);
-  display.setTextColor(SH110X_WHITE, SH110X_BLACK);
-  display.print("Accel: "); display.println(accel++);
-  display.print("Gyro: "); display.println(gyro++);
-  
-  delay(50);
-  yield();
-  display.display();
+  if(previous - millis() >= 125) {
+    previous = millis();
+    
+    int16_t rpm = rpm_filtered;
+    if( abs(rpm) <= 4 ){
+      rpm = 0;
+    }
+    char buf[100] = {};
+    sprintf(buf, "RPM: %hd      \nVp: %.1f", rpm, dataIn.batteryLevel);
+    display.setCursor(0,0);
+    display.setTextColor(SH110X_WHITE, SH110X_BLACK);
+    display.print(buf);
+    yield();
+    display.display();
+  }
 }
 
 /**
@@ -146,8 +173,7 @@ void connect_callback(uint16_t conn_handle)
   Serial.print("Discovering IMU Service ... ");
 
   // If IMU is not found, disconnect and return
-  if ( !imuS.discover(conn_handle) )
-  {
+  if ( !imuS.discover(conn_handle) ){
     Serial.println("Found NONE");
 
     // disconnect since we couldn't find IMU service
@@ -160,8 +186,7 @@ void connect_callback(uint16_t conn_handle)
   Serial.println("Found it");
   
   Serial.print("Discovering Measurement characteristic ... ");
-  if ( !accelC.discover() & !gyroC.discover() & !magC.discover())
-  {
+  if ( !gyroC.discover() ){
     // Measurement chr is mandatory, if it is not found (valid), then disconnect
     Serial.println("not found !!!");  
     Serial.println("Measurement characteristic is mandatory but not found");
@@ -169,34 +194,18 @@ void connect_callback(uint16_t conn_handle)
     return;
   }
 
-  // Reaching here means we are ready to go, let's enable notification on measurement chr
-  if ( accelC.enableNotify() )
-  {
-    Serial.println("Ready to receive accel Measurement value");
-  }else
-  {
-    Serial.println("Couldn't enable notify for accel Measurement. Increase DEBUG LEVEL for troubleshooting");
-  }
-
-  if ( gyroC.enableNotify() )
-  {
+  if ( gyroC.enableNotify() ){
     Serial.println("Ready to receive gyro Measurement value");
-  }else
-  {
+  }
+  else{
     Serial.println("Couldn't enable notify for gyro Measurement. Increase DEBUG LEVEL for troubleshooting");
   }
 
-  if ( magC.enableNotify() )
-  {
-    Serial.println("Ready to receive mag Measurement value");
-  }else
-  {
-    Serial.println("Couldn't enable notify for mag Measurement. Increase DEBUG LEVEL for troubleshooting");
-  }
   display.clearDisplay();
   display.setCursor(0,0);
-  display.print("Connected!\n");
+  yield();
   display.display();
+  delay(25);
 }
 
 /**
@@ -206,43 +215,29 @@ void connect_callback(uint16_t conn_handle)
  */
 void disconnect_callback(uint16_t conn_handle, uint8_t reason)
 {
+
   (void) conn_handle;
   (void) reason;
-
   Serial.print("Disconnected, reason = 0x"); Serial.println(reason, HEX);
+  
+  dataIn.batteryLevel = 0;
+  rpm_filtered = 0; 
 }
 
 
 /**
  * Hooked callback that triggered when a measurement value is sent from peripheral
  * @param chr   Pointer client characteristic that even occurred,
- *              in this example it should be accelC, gyroC or magC
+ *              in this example it should be gyroC
  * @param data  Pointer to received data
  * @param len   Length of received data
  */
 void IMU_notify_callback(BLEClientCharacteristic* chr, uint8_t* data, uint16_t len)
 {
   memcpy(&dataIn, data, sizeof(dataIn));
-  Serial.print(chr->valueHandle());
-  
-//  if(chr->valueHandle() == 16){
-//    Serial.print("Accel :");
-//  }
-//  else if(chr->valueHandle() == 19){
-//    Serial.print("Gyro :");
-//  }
-//  else if(chr->valueHandle() == 22){
-//    Serial.print("Mag :");
-//  }
-//  else{
-//    // Not an expected characteristic, ignore it+
-//    Serial.print("Skipping, check connHandle value");
-//    return;
-//  }
-  
-  Serial.print(","); Serial.print(dataIn.tickTime);
-  Serial.print(","); Serial.print(dataIn.x);
-  Serial.print(","); Serial.print(dataIn.y);
-  Serial.print(","); Serial.println(dataIn.z);
-
+  movingAverage((int16_t)dataIn.gyroY*radPerSec2RPM, &rpm_filtered);
+  Serial.print("Gyro :");
+  char buf[150];
+  sprintf(buf, "%.3f,%hd,%.2f", dataIn.gyroY, rpm_filtered, dataIn.batteryLevel);
+  Serial.println(buf);
 }
